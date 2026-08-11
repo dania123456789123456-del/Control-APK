@@ -13,8 +13,8 @@ jobs:
 
       - name: Descomprimir el archivo
         run: |
-          unzip -o *.zip      # Descomprime el archivo sobreescribiendo si es necesario
-          rm *.zip            # Borra el archivo zip original para no acumular basura
+          unzip -o *.zip -x ".github/workflows/*"  # Descomprime ignorando la carpeta prohibida
+          rm *.zip                                 # Borra el archivo zip original
 
       - name: Guardar cambios en GitHub
         run: |
