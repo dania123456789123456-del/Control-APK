@@ -1,0 +1,25 @@
+name: Descomprimir ZIP Automaticamente
+on:
+  push:
+    paths:
+      - '*.zip'  # Se activa solo cuando subes un archivo .zip
+
+jobs:
+  unzip-process:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Descomprimir el archivo
+        run: |
+          unzip -o *.zip      # Descomprime el archivo sobreescribiendo si es necesario
+          rm *.zip            # Borra el archivo zip original para no acumular basura
+
+      - name: Guardar cambios en GitHub
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add .
+          git commit -m "Auto-unzip: Estructura de carpetas desplegada" || exit 0
+          git push origin ${{ github.ref_name }}
