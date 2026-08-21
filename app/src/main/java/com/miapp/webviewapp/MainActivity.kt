@@ -25,7 +25,7 @@ class MainActivity : AppCompatActivity() {
     // CAMBIA ESTA LÍNEA por la URL de tu página, o deja el archivo
     // local en app/src/main/assets/index.html y usa la ruta de abajo.
     // ---------------------------------------------------------------
-    private val PAGINA_A_CARGAR = "https://dania123456789123456-del.github.io/APN/"
+    private val PAGINA_A_CARGAR = "https://dania123456789123456-del.github.io/Inventario-prc/"
     // private val PAGINA_A_CARGAR = "https://tu-dominio.com/index.html"
 
     override fun onCreate(savedInstanceState: Bundle?) {
