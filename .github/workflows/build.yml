@@ -1,0 +1,90 @@
+name: Build APK WebView
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "Nombre de la carpeta dentro de profiles/"
+        required: true
+        default: "control"
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar proyecto
+        uses: actions/checkout@v4
+
+      - name: Preparar perfil
+        shell: bash
+        run: |
+          PROFILE="${{ inputs.profile || 'control' }}"
+          if [ ! -f "profiles/$PROFILE/config.properties" ]; then
+            echo "No existe profiles/$PROFILE/config.properties"
+            exit 1
+          fi
+          if [ ! -f "profiles/$PROFILE/icon.png" ]; then
+            echo "No existe profiles/$PROFILE/icon.png"
+            exit 1
+          fi
+          cp "profiles/$PROFILE/config.properties" active-config.properties
+          cp "profiles/$PROFILE/icon.png" app-icon-source.png
+
+          APP_NAME=$(grep '^NOMBRE=' active-config.properties | cut -d= -f2-)
+          APP_ID=$(grep '^ID=' active-config.properties | cut -d= -f2-)
+          VERSION_NAME=$(grep '^VERSION=' active-config.properties | cut -d= -f2-)
+
+          if ! echo "$APP_ID" | grep -Eq '^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$'; then
+            echo "ID no parece un applicationId válido: $APP_ID"
+            exit 1
+          fi
+
+          VERSION_CODE=$((1000 + GITHUB_RUN_NUMBER))
+          echo "VERSION_CODE=$VERSION_CODE" >> active-config.properties
+
+          SAFE_NAME=$(echo "$APP_NAME" | tr ' /' '__' | tr -cd '[:alnum:]_.-')
+          echo "APK_NAME=${SAFE_NAME}-v${VERSION_NAME}-build${VERSION_CODE}.apk" >> "$GITHUB_ENV"
+          echo "PROFILE_NAME=$PROFILE" >> "$GITHUB_ENV"
+
+      - name: Preparar iconos Android
+        shell: bash
+        run: |
+          rm -rf app/src/main/res/mipmap app/src/main/res/mipmap-anydpi-v26
+          mkdir -p app/src/main/res/mipmap-mdpi
+          mkdir -p app/src/main/res/mipmap-hdpi
+          mkdir -p app/src/main/res/mipmap-xhdpi
+          mkdir -p app/src/main/res/mipmap-xxhdpi
+          mkdir -p app/src/main/res/mipmap-xxxhdpi
+          magick app-icon-source.png -resize 48x48 app/src/main/res/mipmap-mdpi/ic_launcher.png
+          magick app-icon-source.png -resize 72x72 app/src/main/res/mipmap-hdpi/ic_launcher.png
+          magick app-icon-source.png -resize 96x96 app/src/main/res/mipmap-xhdpi/ic_launcher.png
+          magick app-icon-source.png -resize 144x144 app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+          magick app-icon-source.png -resize 192x192 app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+
+      - name: Configurar JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Configurar Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Compilar APK
+        run: gradle assembleDebug
+
+      - name: Renombrar APK
+        shell: bash
+        run: |
+          mkdir -p output
+          cp app/build/outputs/apk/debug/app-debug.apk "output/${APK_NAME}"
+
+      - name: Guardar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APK_NAME }}
+          path: output/${{ env.APK_NAME }}
+          if-no-files-found: error
+          retention-days: 30
