@@ -48,6 +48,8 @@ jobs:
           echo "APK_NAME=${SAFE_NAME}-v${VERSION_NAME}-build${VERSION_CODE}.apk" >> "$GITHUB_ENV"
           echo "PROFILE_NAME=$PROFILE" >> "$GITHUB_ENV"
 
+      - name: Instalar ImageMagick
+        run: sudo apt-get update && sudo apt-get install -y imagemagick
       - name: Preparar iconos Android
         shell: bash
         run: |
