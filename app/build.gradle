@@ -3,19 +3,49 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
+Properties cfg = new Properties()
+File cfgFile = rootProject.file("active-config.properties")
+if (cfgFile.exists()) {
+    cfgFile.withInputStream { cfg.load(it) }
+}
+
+def prop = { String key, String fallback -> cfg.getProperty(key, fallback) }
+def esc = { String value -> value.replace('\\','\\\\').replace('"','\\"') }
+
+def appName = prop('NOMBRE', 'Mi Web')
+def webUrl = prop('URL', 'https://example.com')
+def appId = prop('ID', 'com.juan.miweb')
+def orientation = prop('ORIENTACION', 'landscape')
+def versionNameValue = prop('VERSION', '1.0')
+def versionCodeValue = prop('VERSION_CODE', '1').toInteger()
+
+def boolProp = { String key -> prop(key, 'false').equalsIgnoreCase('true') }
+
 android {
     namespace 'com.miapp.webviewapp'
-    compileSdk 34
+    compileSdk 35
 
     defaultConfig {
-        applicationId "com.miapp.webviewapp"
+        applicationId appId
         minSdk 24
-        targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        targetSdk 35
+        versionCode versionCodeValue
+        versionName versionNameValue
+        resValue "string", "app_name", "\"${esc(appName)}\""
+        buildConfigField "String", "WEB_URL", "\"${esc(webUrl)}\""
+        buildConfigField "String", "APP_ORIENTATION", "\"${esc(orientation)}\""
+        buildConfigField "boolean", "ENABLE_LOCATION", "${boolProp('UBICACION')}"
+        buildConfigField "boolean", "ENABLE_MICROPHONE", "${boolProp('MICROFONO')}"
+        buildConfigField "boolean", "ENABLE_CAMERA", "${boolProp('CAMARA')}"
+        buildConfigField "boolean", "ENABLE_NOTIFICATIONS", "${boolProp('NOTIFICACIONES')}"
+        buildConfigField "boolean", "ENABLE_DOWNLOADS", "${boolProp('DESCARGAS')}"
+        buildConfigField "boolean", "ENABLE_ZOOM", "${boolProp('ZOOM')}"
+        buildConfigField "boolean", "FULLSCREEN", "${boolProp('PANTALLA_COMPLETA')}"
+        buildConfigField "boolean", "EXTERNAL_LINKS", "${boolProp('ENLACES_EXTERNOS')}"
     }
 
     buildTypes {
+        debug { minifyEnabled false }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
@@ -26,19 +56,13 @@ android {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
-
-    kotlinOptions {
-        jvmTarget = '17'
-    }
-
-    buildFeatures {
-        viewBinding false
-    }
+    kotlinOptions { jvmTarget = '17' }
+    buildFeatures { buildConfig true }
 }
 
 dependencies {
-    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'androidx.core:core-ktx:1.15.0'
     implementation 'androidx.appcompat:appcompat:1.7.0'
-    implementation 'androidx.webkit:webkit:1.11.0'
+    implementation 'androidx.webkit:webkit:1.12.1'
     implementation 'com.google.android.material:material:1.12.0'
 }
