@@ -1,0 +1,29 @@
+name: Descomprimir ZIP Automaticamente
+on:
+  push:
+    paths:
+      - '*.zip'
+
+jobs:
+  unzip-process:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Borrar contenido anterior
+        run: |
+          find . -maxdepth 1 ! -name '.' ! -name '.git' ! -name '.github' ! -name '*.zip' -exec rm -rf {} +
+
+      - name: Descomprimir el archivo
+        run: |
+          unzip -o *.zip -x ".github/workflows/*"
+          rm *.zip
+
+      - name: Guardar cambios en GitHub
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add -A
+          git commit -m "Auto-unzip: reemplazo de estructura de carpetas" || exit 0
+          git push origin ${{ github.ref_name }}
