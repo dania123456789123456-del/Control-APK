@@ -6,6 +6,9 @@ import android.os.Build
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.provider.MediaStore
 import android.util.Base64
 import android.webkit.JavascriptInterface
@@ -63,6 +66,30 @@ class DownloadBridge(private val context: Context) {
             avisar("Error al guardar: ${e.message}")
         }
     }
+
+    /** Vibración desde JavaScript: window.AndroidDownloader.vibrar(120)  (milisegundos) */
+    @JavascriptInterface
+    fun vibrar(ms: Int) {
+        try {
+            val d = ms.coerceIn(10, 500).toLong()
+            val v = vibrador()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                v.vibrate(VibrationEffect.createOneShot(d, VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                v.vibrate(d)
+            }
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun vibrador(): Vibrator =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            (context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        }
 
     private fun avisar(msg: String) {
         Handler(Looper.getMainLooper()).post {
