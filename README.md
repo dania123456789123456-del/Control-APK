@@ -45,6 +45,9 @@ NOMBRE=Control PRC
 URL=https://ejemplo.com/control
 ID=com.juan.controlprc
 ORIENTACION=horizontal
+VISTA=pc
+ANCHO_PC=1920
+USER_AGENT_PC=true
 VERSION=1.0
 UBICACION=true
 MICROFONO=true
@@ -62,6 +65,25 @@ ENLACES_EXTERNOS=true
 - ID diferente → pueden convivir instaladas.
 
 `VERSION_CODE` no hace falta editarlo: GitHub Actions lo genera usando el número de ejecución. Esto permite instalar actualizaciones con una versión superior.
+
+## Vista PC o móvil (nuevo)
+
+Puedes decidir cómo se ve la web **antes de compilar**, de dos formas:
+
+**1. En el perfil** (`profiles/NOMBRE/config.properties`):
+
+```properties
+VISTA=pc            # pc = fuerza diseño de escritorio | movil = como antes
+ANCHO_PC=1920       # ancho virtual en px (1280, 1440, 1920...). Menor ancho = interfaz más grande
+USER_AGENT_PC=true  # se identifica como navegador de escritorio
+ORIENTACION=horizontal   # horizontal | vertical | auto
+```
+
+**2. Al ejecutar el workflow** (Actions → Build APK WebView → Run workflow):
+los campos `vista`, `orientacion` y `ancho_pc` sobrescriben al perfil solo para esa compilación.
+Con `perfil` / vacío se usa lo que diga el `config.properties`.
+
+Consejo: prueba 1920 (como en tu previsualizador), y si se ve muy pequeño baja a 1440 o 1280.
 
 ## Permisos
 

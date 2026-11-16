@@ -3,6 +3,7 @@ package com.miapp.webviewapp
 import android.Manifest
 import android.app.DownloadManager
 import android.content.Intent
+import android.graphics.Bitmap
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -26,6 +27,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 
 class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
@@ -64,8 +67,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        requestedOrientation = if (BuildConfig.APP_ORIENTATION.equals("portrait", true))
-            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        requestedOrientation = when (BuildConfig.APP_ORIENTATION.trim().lowercase()) {
+            "portrait", "vertical" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+            "auto", "libre", "sensor" -> ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
+            else -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE // horizontal / landscape
+        }
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
         if (BuildConfig.FULLSCREEN) hideSystemBars()
@@ -93,6 +99,30 @@ class MainActivity : AppCompatActivity() {
     private fun hasPermission(permission: String) =
         ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
 
+    private val desktopView: Boolean
+        get() = BuildConfig.VIEW_MODE.trim().equals("pc", true)
+
+    // Fuerza el viewport a un ancho de PC (ej. 1920) para que la web use su diseño de escritorio.
+    private val forceViewportJs: String
+        get() = """
+            (function(){
+              if (window.__forceViewport) { window.__forceViewport(); return; }
+              var W = __WIDTH__;
+              function apply(){
+                var host = document.head || document.documentElement;
+                if (!host) return;
+                var m = document.querySelector('meta[name="viewport"]');
+                if (!m) { m = document.createElement('meta'); m.setAttribute('name','viewport'); host.appendChild(m); }
+                var c = 'width=' + W;
+                if (m.getAttribute('content') !== c) m.setAttribute('content', c);
+              }
+              window.__forceViewport = apply;
+              apply();
+              new MutationObserver(apply).observe(document, {childList:true, subtree:true, attributes:true, attributeFilter:['content']});
+              document.addEventListener('DOMContentLoaded', apply);
+            })();
+        """.trimIndent().replace("__WIDTH__", BuildConfig.DESKTOP_WIDTH.toString())
+
     private fun setupWebView() {
         webView.settings.apply {
             javaScriptEnabled = true
@@ -106,10 +136,25 @@ class MainActivity : AppCompatActivity() {
             builtInZoomControls = BuildConfig.ENABLE_ZOOM
             displayZoomControls = false
             setGeolocationDatabasePath(filesDir.path)
+            if (desktopView && BuildConfig.DESKTOP_UA) {
+                userAgentString = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 " +
+                    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            }
+        }
+        if (desktopView && WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+            WebViewCompat.addDocumentStartJavaScript(webView, forceViewportJs, setOf("*"))
         }
         webView.addJavascriptInterface(DownloadBridge(this), "AndroidDownloader")
 
         webView.webViewClient = object : WebViewClient() {
+            override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
+                super.onPageStarted(view, url, favicon)
+                if (desktopView) view.evaluateJavascript(forceViewportJs, null)
+            }
+            override fun onPageFinished(view: WebView, url: String?) {
+                super.onPageFinished(view, url)
+                if (desktopView) view.evaluateJavascript(forceViewportJs, null)
+            }
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 if (!BuildConfig.EXTERNAL_LINKS) return false
                 return openExternalIfNeeded(request.url.toString())

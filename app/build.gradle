@@ -17,6 +17,8 @@ def webUrl = prop('URL', 'https://example.com')
 def appId = prop('ID', 'com.juan.miweb')
 def orientation = prop('ORIENTACION', 'landscape')
 def versionNameValue = prop('VERSION', '1.0')
+def viewMode = prop('VISTA', 'movil')
+def desktopWidth = prop('ANCHO_PC', '1920').toInteger()
 def versionCodeValue = prop('VERSION_CODE', '1').toInteger()
 
 def boolProp = { String key -> prop(key, 'false').equalsIgnoreCase('true') }
@@ -34,6 +36,9 @@ android {
         resValue "string", "app_name", "\"${esc(appName)}\""
         buildConfigField "String", "WEB_URL", "\"${esc(webUrl)}\""
         buildConfigField "String", "APP_ORIENTATION", "\"${esc(orientation)}\""
+        buildConfigField "String", "VIEW_MODE", "\"${esc(viewMode)}\""
+        buildConfigField "int", "DESKTOP_WIDTH", "${desktopWidth}"
+        buildConfigField "boolean", "DESKTOP_UA", "${boolProp('USER_AGENT_PC')}"
         buildConfigField "boolean", "ENABLE_LOCATION", "${boolProp('UBICACION')}"
         buildConfigField "boolean", "ENABLE_MICROPHONE", "${boolProp('MICROFONO')}"
         buildConfigField "boolean", "ENABLE_CAMERA", "${boolProp('CAMARA')}"
