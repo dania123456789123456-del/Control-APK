@@ -38,6 +38,7 @@ android {
         buildConfigField "String", "APP_ORIENTATION", "\"${esc(orientation)}\""
         buildConfigField "String", "VIEW_MODE", "\"${esc(viewMode)}\""
         buildConfigField "int", "DESKTOP_WIDTH", "${desktopWidth}"
+        buildConfigField "boolean", "DEBUG_VISTA", "${boolProp('DIAGNOSTICO')}"
         buildConfigField "boolean", "DESKTOP_UA", "${boolProp('USER_AGENT_PC')}"
         buildConfigField "boolean", "ENABLE_LOCATION", "${boolProp('UBICACION')}"
         buildConfigField "boolean", "ENABLE_MICROPHONE", "${boolProp('MICROFONO')}"

@@ -103,23 +103,35 @@ class MainActivity : AppCompatActivity() {
         get() = BuildConfig.VIEW_MODE.trim().equals("pc", true)
 
     // Fuerza el viewport a un ancho de PC (ej. 1920) para que la web use su diseño de escritorio.
+    // Importante: se aplica a TODAS las etiquetas <meta name="viewport"> (la de la pagina llega despues
+    // de la nuestra y, si no la tocamos tambien, es la que gana).
     private val forceViewportJs: String
         get() = """
             (function(){
               if (window.__forceViewport) { window.__forceViewport(); return; }
               var W = __WIDTH__;
+              var C = 'width=' + W;
               function apply(){
                 var host = document.head || document.documentElement;
                 if (!host) return;
-                var m = document.querySelector('meta[name="viewport"]');
-                if (!m) { m = document.createElement('meta'); m.setAttribute('name','viewport'); host.appendChild(m); }
-                var c = 'width=' + W;
-                if (m.getAttribute('content') !== c) m.setAttribute('content', c);
+                var metas = document.querySelectorAll('meta[name="viewport"]');
+                if (!metas.length) {
+                  var m = document.createElement('meta');
+                  m.setAttribute('name','viewport');
+                  m.setAttribute('content', C);
+                  host.appendChild(m);
+                  return;
+                }
+                for (var i = 0; i < metas.length; i++) {
+                  if (metas[i].getAttribute('content') !== C) metas[i].setAttribute('content', C);
+                }
               }
               window.__forceViewport = apply;
               apply();
               new MutationObserver(apply).observe(document, {childList:true, subtree:true, attributes:true, attributeFilter:['content']});
               document.addEventListener('DOMContentLoaded', apply);
+              window.addEventListener('load', apply);
+              window.addEventListener('orientationchange', function(){ setTimeout(apply, 200); });
             })();
         """.trimIndent().replace("__WIDTH__", BuildConfig.DESKTOP_WIDTH.toString())
 
@@ -154,6 +166,13 @@ class MainActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView, url: String?) {
                 super.onPageFinished(view, url)
                 if (desktopView) view.evaluateJavascript(forceViewportJs, null)
+                if (BuildConfig.DEBUG_VISTA) {
+                    view.postDelayed({
+                        view.evaluateJavascript(
+                            "(function(){return 'ancho CSS='+innerWidth+' alto='+innerHeight+' dpr='+devicePixelRatio+' metas='+document.querySelectorAll('meta[name=viewport]').length+' contenido='+(document.querySelector('meta[name=viewport]')||{getAttribute:function(){return 'ninguno'}}).getAttribute('content')})()"
+                        ) { r -> Toast.makeText(this@MainActivity, r, Toast.LENGTH_LONG).show() }
+                    }, 1500)
+                }
             }
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 if (!BuildConfig.EXTERNAL_LINKS) return false
