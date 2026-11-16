@@ -8,6 +8,23 @@ on:
         required: true
         default: "control"
         type: string
+      vista:
+        description: "Vista de la web (perfil = usar la del config.properties)"
+        required: true
+        default: "perfil"
+        type: choice
+        options: [perfil, pc, movil]
+      orientacion:
+        description: "Orientacion de la app (perfil = usar la del config.properties)"
+        required: true
+        default: "perfil"
+        type: choice
+        options: [perfil, horizontal, vertical, auto]
+      ancho_pc:
+        description: "Ancho de la vista PC en px. Vacio = el del perfil. Ej: 1280, 1440, 1920"
+        required: false
+        default: ""
+        type: string
 
 jobs:
   build:
@@ -19,8 +36,17 @@ jobs:
 
       - name: Preparar perfil
         shell: bash
+        env:
+          IN_PROFILE: ${{ inputs.profile }}
+          IN_VISTA: ${{ inputs.vista }}
+          IN_ORIENTACION: ${{ inputs.orientacion }}
+          IN_ANCHO: ${{ inputs.ancho_pc }}
         run: |
-          PROFILE="${{ inputs.profile || 'control' }}"
+          PROFILE="${IN_PROFILE:-control}"
+          if [[ ! "$PROFILE" =~ ^[A-Za-z0-9_.-]+$ ]]; then
+            echo "Nombre de perfil no valido: $PROFILE"
+            exit 1
+          fi
           if [ ! -f "profiles/$PROFILE/config.properties" ]; then
             echo "No existe profiles/$PROFILE/config.properties"
             exit 1
@@ -31,13 +57,31 @@ jobs:
           fi
           cp "profiles/$PROFILE/config.properties" active-config.properties
           cp "profiles/$PROFILE/icon.png" app-icon-source.png
+          sed -i 's/\r$//' active-config.properties
+          echo "" >> active-config.properties
+
+          set_cfg() {
+            sed -i "/^$1=/d" active-config.properties
+            echo "$1=$2" >> active-config.properties
+          }
+
+          # Valores elegidos al ejecutar el workflow (sobrescriben al perfil)
+          if [ -n "$IN_VISTA" ] && [ "$IN_VISTA" != "perfil" ]; then set_cfg VISTA "$IN_VISTA"; fi
+          if [ -n "$IN_ORIENTACION" ] && [ "$IN_ORIENTACION" != "perfil" ]; then set_cfg ORIENTACION "$IN_ORIENTACION"; fi
+          if [ -n "$IN_ANCHO" ]; then
+            if [[ ! "$IN_ANCHO" =~ ^[0-9]{3,4}$ ]]; then
+              echo "ancho_pc debe ser un numero de 3 o 4 cifras (ej. 1280). Recibido: $IN_ANCHO"
+              exit 1
+            fi
+            set_cfg ANCHO_PC "$IN_ANCHO"
+          fi
 
           APP_NAME=$(grep '^NOMBRE=' active-config.properties | cut -d= -f2-)
           APP_ID=$(grep '^ID=' active-config.properties | cut -d= -f2-)
           VERSION_NAME=$(grep '^VERSION=' active-config.properties | cut -d= -f2-)
 
           if ! echo "$APP_ID" | grep -Eq '^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$'; then
-            echo "ID no parece un applicationId válido: $APP_ID"
+            echo "ID no parece un applicationId valido: $APP_ID"
             exit 1
           fi
 
@@ -47,6 +91,13 @@ jobs:
           SAFE_NAME=$(echo "$APP_NAME" | tr ' /' '__' | tr -cd '[:alnum:]_.-')
           echo "APK_NAME=${SAFE_NAME}-v${VERSION_NAME}-build${VERSION_CODE}.apk" >> "$GITHUB_ENV"
           echo "PROFILE_NAME=$PROFILE" >> "$GITHUB_ENV"
+
+          {
+            echo "### Configuracion de la APK"
+            echo '```'
+            grep -E '^(NOMBRE|URL|ID|VISTA|ANCHO_PC|USER_AGENT_PC|ORIENTACION)=' active-config.properties
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Instalar ImageMagick
         run: sudo apt-get update && sudo apt-get install -y imagemagick
