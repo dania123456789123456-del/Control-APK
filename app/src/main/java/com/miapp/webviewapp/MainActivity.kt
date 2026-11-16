@@ -102,18 +102,35 @@ class MainActivity : AppCompatActivity() {
     private val desktopView: Boolean
         get() = BuildConfig.VIEW_MODE.trim().equals("pc", true)
 
-    // Fuerza el viewport a un ancho de PC (ej. 1920) para que la web use su diseño de escritorio.
-    // Importante: se aplica a TODAS las etiquetas <meta name="viewport"> (la de la pagina llega despues
-    // de la nuestra y, si no la tocamos tambien, es la que gana).
+    // Fuerza el viewport a un ancho de PC (ej. 1920) y fija la escala para que la pagina entera
+    // quepa en la pantalla (sin barras de desplazamiento ni zoom automatico al tocar un campo).
+    // Se aplica a TODAS las etiquetas <meta name="viewport">: la de la pagina llega despues de la
+    // nuestra y, si no la tocamos tambien, es la que gana.
     private val forceViewportJs: String
         get() = """
             (function(){
               if (window.__forceViewport) { window.__forceViewport(); return; }
               var W = __WIDTH__;
-              var C = 'width=' + W;
+              var LOCK = __LOCK__;
+              function content(){
+                var c = 'width=' + W;
+                var sw = window.screen ? window.screen.width : 0;
+                var sh = window.screen ? window.screen.height : 0;
+                if (sw && sh) {
+                  var land = window.innerWidth >= window.innerHeight;
+                  var dw = land ? Math.max(sw, sh) : Math.min(sw, sh);
+                  var s = Math.floor(dw / W * 10000) / 10000;
+                  if (s > 0) {
+                    c += ', initial-scale=' + s;
+                    if (LOCK) c += ', minimum-scale=' + s + ', maximum-scale=' + s + ', user-scalable=no';
+                  }
+                }
+                return c;
+              }
               function apply(){
                 var host = document.head || document.documentElement;
                 if (!host) return;
+                var C = content();
                 var metas = document.querySelectorAll('meta[name="viewport"]');
                 if (!metas.length) {
                   var m = document.createElement('meta');
@@ -131,9 +148,12 @@ class MainActivity : AppCompatActivity() {
               new MutationObserver(apply).observe(document, {childList:true, subtree:true, attributes:true, attributeFilter:['content']});
               document.addEventListener('DOMContentLoaded', apply);
               window.addEventListener('load', apply);
-              window.addEventListener('orientationchange', function(){ setTimeout(apply, 200); });
+              window.addEventListener('resize', function(){ setTimeout(apply, 100); });
+              window.addEventListener('orientationchange', function(){ setTimeout(apply, 300); });
             })();
-        """.trimIndent().replace("__WIDTH__", BuildConfig.DESKTOP_WIDTH.toString())
+        """.trimIndent()
+            .replace("__WIDTH__", BuildConfig.DESKTOP_WIDTH.toString())
+            .replace("__LOCK__", (!BuildConfig.ENABLE_ZOOM).toString())
 
     private fun setupWebView() {
         webView.settings.apply {
@@ -169,7 +189,7 @@ class MainActivity : AppCompatActivity() {
                 if (BuildConfig.DEBUG_VISTA) {
                     view.postDelayed({
                         view.evaluateJavascript(
-                            "(function(){return 'ancho CSS='+innerWidth+' alto='+innerHeight+' dpr='+devicePixelRatio+' metas='+document.querySelectorAll('meta[name=viewport]').length+' contenido='+(document.querySelector('meta[name=viewport]')||{getAttribute:function(){return 'ninguno'}}).getAttribute('content')})()"
+                            "(function(){return 'ancho CSS='+innerWidth+' alto='+innerHeight+' dpr='+devicePixelRatio+' escala='+(window.visualViewport?visualViewport.scale.toFixed(2):'?')+' metas='+document.querySelectorAll('meta[name=viewport]').length+' contenido='+(document.querySelector('meta[name=viewport]')||{getAttribute:function(){return 'ninguno'}}).getAttribute('content')})()"
                         ) { r -> Toast.makeText(this@MainActivity, r, Toast.LENGTH_LONG).show() }
                     }, 1500)
                 }
