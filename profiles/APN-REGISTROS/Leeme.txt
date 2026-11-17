@@ -1,1 +1,14 @@
-
+NOMBRE=Registros APN
+URL=https://tu-pagina.github.io/app/
+ID=com.juan.registrros-APN
+ORIENTACION=vertical
+VERSION=1.0
+UBICACION=true
+MICROFONO=true
+CAMARA=true
+NOTIFICACIONES=true
+DESCARGAS=true
+ZOOM=false
+PANTALLA_COMPLETA=true
+ENLACES_EXTERNOS=true
+VISTA=movil
